@@ -26,7 +26,13 @@ When asked to "tell a story about X" or "create a deck for Y":
 
 3. **Save to `showoff/`** with a descriptive filename like `feature-name-deck.html`
 
-4. **Deploy to SharePoint** by running: `./deploy.sh filename.html`
+4. **Wait for user approval** - Don't deploy automatically. The user will review and ask you to deploy when ready.
+
+5. **Deploy on request** - When the user says "deploy" or "looks good, ship it":
+   ```bash
+   ./deploy.sh filename.html   # specific deck
+   ./deploy.sh                 # all decks
+   ```
 
 ### Remembered Presentation Styles
 
