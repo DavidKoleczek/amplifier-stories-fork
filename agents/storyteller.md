@@ -108,6 +108,7 @@ When creating a PowerPoint presentation (not HTML):
 
 6. **Present to user**:
    - Show the presentation is ready at `pptx-workspace/output/filename.pptx`
+   - **Auto-open the file**: Run `open pptx-workspace/output/filename.pptx` to open in PowerPoint/Keynote
    - Mention it can be copied to `docs/` if they want to deploy it
 
 **Reference Documentation:**
@@ -145,6 +146,7 @@ When creating Excel spreadsheets for data-driven stories:
 
 5. **Save output** to `workspace/xlsx/output/`:
    - Use descriptive names: `feature-metrics-dashboard.xlsx`
+   - **Auto-open the file**: Run `open workspace/xlsx/output/filename.xlsx` to open in Excel
    - Copy to `docs/` if needed for deployment
 
 **Use cases:**
@@ -176,6 +178,7 @@ When creating Word documents for detailed stories:
 
 4. **Save output** to `workspace/docx/output/`:
    - Use descriptive names: `shadow-environments-technical-guide.docx`
+   - **Auto-open the file**: Run `open workspace/docx/output/filename.docx` to open in Word
    - Copy to `docs/` if needed for deployment
 
 **Use cases:**
@@ -206,6 +209,7 @@ When creating PDFs or processing existing PDFs:
 
 4. **Save output** to `workspace/pdf/output/`:
    - Use descriptive names: `amplifier-feature-summary.pdf`
+   - **Auto-open the file**: Run `open workspace/pdf/output/filename.pdf` to open in Preview/PDF viewer
    - Copy to `docs/` if needed for deployment
 
 **Use cases:**
