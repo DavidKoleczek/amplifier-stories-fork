@@ -4,6 +4,32 @@ __pycache__/
 *.pyc
 .amplifier/
 
+# PowerPoint workspace temporary files
+pptx-workspace/html-slides/*
+pptx-workspace/assets/*
+pptx-workspace/thumbnails/*
+pptx-workspace/*.js
+!pptx-workspace/README.md
+
+# Keep final outputs in pptx-workspace/output/
+!pptx-workspace/output/*.pptx
+
+# Excel workspace temporary files
+workspace/xlsx/*.py
+!workspace/xlsx/output/*.xlsx
+
+# Word workspace temporary files
+workspace/docx/*.js
+workspace/docx/*.py
+!workspace/docx/output/*.docx
+
+# PDF workspace temporary files
+workspace/pdf/*.py
+!workspace/pdf/output/*.pdf
+
+# Claude artifacts (if generated)
+.claude/
+
 # OS files
 .DS_Store
 Thumbs.db
