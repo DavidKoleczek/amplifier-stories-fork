@@ -21,20 +21,53 @@ When asked to "tell a story about X" or "create a deck for Y":
 7. **Wait for approval** - Don't deploy automatically
 8. **Deploy on request** - When user says "deploy" or "ship it", commit and push to GitHub
 
-## Index Maintenance
+## Staging Integration Workflow
 
-**IMPORTANT**: After creating any new deck, you MUST update `docs/index.html`:
+**NEW CAPABILITY**: When the user says "integrate staging" or "push staging live", you should:
 
-1. Add a new `<a href="..." class="deck-card">` entry in the appropriate category section
-2. Choose the right category class:
-   - `category-showcase` (blue) - Full projects built with Amplifier
-   - `category-feature` (green) - Platform capabilities
-   - `category-devex` (purple) - Developer experience improvements
-   - `category-enterprise` (orange) - Enterprise/compliance features
-3. Include: title, description (1-2 sentences), slide count
-4. Keep cards in logical order within each category
+1. **Scan staging/** - Find all HTML decks waiting to be published
+2. **Categorize** - Automatically categorize each deck based on title/description:
+   - **Getting Started** - Introduction, guides, basics
+   - **Showcase** - Interactive demos, case studies, projects
+   - **Features** - Platform capabilities, new releases
+   - **Developer Tools** - Tool modules (database, diagrams, CI/CD)
+   - **Developer Experience** - DevEx improvements, philosophy
+   - **Enterprise** - Enterprise/compliance features
+3. **Update category pages** - Add each deck to the appropriate category HTML file (getting-started.html, showcase.html, etc.)
+4. **Update counts** - Update story counts on main index.html
+5. **Move to docs/** - Move all processed decks from staging/ to docs/
+6. **Commit and push** - Create a single commit with all changes and push to GitHub
 
-The index is the landing page at https://ramparte.github.io/amplifier-stories/
+## Index Maintenance (Two-Tier Structure)
+
+The site now has a two-tier structure:
+
+**Main landing page** (docs/index.html):
+- 6 category cards with counts and descriptions
+- No individual deck listings
+
+**Category pages** (e.g., docs/showcase.html, docs/features.html):
+- Each category has its own dedicated page
+- Individual deck cards live here
+
+**When creating a NEW deck manually**:
+
+1. **Save to staging/** first (not docs/ directly)
+2. The deck will be integrated when user requests "integrate staging"
+
+**OR if user wants immediate publication**:
+
+1. Save to docs/ with descriptive filename
+2. Add deck card to appropriate category page:
+   - docs/getting-started.html - For introductions/guides
+   - docs/showcase.html - For demos/projects
+   - docs/features.html - For platform capabilities
+   - docs/tools.html - For tool modules
+   - docs/devex.html - For DevEx improvements
+   - docs/enterprise.html - For enterprise features
+3. Update the count on docs/index.html for that category
+4. Auto-open the deck for review
+5. Wait for deployment approval
 
 ## Output Formats
 
