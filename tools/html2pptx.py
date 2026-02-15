@@ -734,7 +734,10 @@ class HTMLToPPTXConverter:
             headline_height = _estimate_text_height(text, size, CONTENT_WIDTH)
             min_h = size / 72 * 1.2 + 0.1
             headline_height = max(min_h, min(headline_height, 2.0))
-            current_top += headline_height + GAP_SECTION
+            # Extra gap on centered title slides to prevent visual overlap
+            # with subtitle (large fonts + text padding need more breathing room)
+            gap_after = GAP_SECTION * 2.5 if is_centered else GAP_SECTION
+            current_top += headline_height + gap_after
             handled_elements.add(id(headline))
 
         # ── Medium headline ──────────────────────────────────────────────────
@@ -788,6 +791,7 @@ class HTMLToPPTXConverter:
             "grid-3",
             "grid-4",
             "grid-5",
+            "tools-grid",
         ]
         card_containers = slide_div.find_all(
             class_=lambda c: c and any(gc in c for gc in grid_classes)
@@ -797,10 +801,12 @@ class HTMLToPPTXConverter:
                 continue
 
             # Find cards or module-cards inside
-            cards = container.find_all(class_=["card", "module-card"], recursive=False)
+            cards = container.find_all(
+                class_=["card", "module-card", "tool-card"], recursive=False
+            )
             if not cards:
                 # Try deeper (some decks nest differently)
-                cards = container.find_all(class_=["card", "module-card"])
+                cards = container.find_all(class_=["card", "module-card", "tool-card"])
 
             if cards:
                 cards_height = self._add_cards(slide, cards, current_top, container)
@@ -855,8 +861,8 @@ class HTMLToPPTXConverter:
         for fd in flow_diagrams:
             if id(fd) in handled_elements:
                 continue
-            self._add_flow_diagram(slide, fd, current_top)
-            current_top += 1.2
+            fd_height = self._add_flow_diagram(slide, fd, current_top)
+            current_top += (fd_height or 1.2) + GAP_SECTION
             handled_elements.add(id(fd))
 
         # ── Tenet boxes ──────────────────────────────────────────────────────
@@ -889,6 +895,9 @@ class HTMLToPPTXConverter:
             self._add_feature_list(slide, fl, current_top)
             items = fl.find_all("li")
             current_top += len(items) * 0.35 + GAP_SECTION
+            handled_elements.add(id(fl))
+            for item in items:
+                handled_elements.add(id(item))
 
         # ── Notification stacks ──────────────────────────────────────────────
         notif_stack = slide_div.find(class_="notification-stack")
@@ -956,10 +965,19 @@ class HTMLToPPTXConverter:
         # ── Fallback: render unrecognized elements with text content ─────────
         # Instead of silently dropping unknown elements, render them as
         # generic text boxes so no content vanishes.
+        # Build ancestor skip set: any element that is an ancestor of a
+        # handled element should also be skipped to prevent duplication.
+        _ancestor_skip: set[int] = set()
+        for _desc in slide_div.descendants:
+            if isinstance(_desc, Tag) and id(_desc) in handled_elements:
+                _par = _desc.parent
+                while _par and _par is not slide_div:
+                    _ancestor_skip.add(id(_par))
+                    _par = _par.parent
         for el in slide_div.children:
             if not isinstance(el, Tag):
                 continue
-            if id(el) in handled_elements:
+            if id(el) in handled_elements or id(el) in _ancestor_skip:
                 continue
             # Skip elements that are parents of already-handled children
             if any(
@@ -985,12 +1003,43 @@ class HTMLToPPTXConverter:
                     current_top += fb_height + GAP_NORMAL
                     handled_elements.add(id(el))
 
-        # ── Overflow warning ─────────────────────────────────────────────────
-        if current_top > SLIDE_HEIGHT + 0.5:
-            self.warnings.append(
-                f'Slide {slide_num}: content extends to {current_top:.1f}" '
-                f'(slide height is {SLIDE_HEIGHT}")'
-            )
+        # ── Overflow compression ─────────────────────────────────────────────
+        # When content extends past slide height, proportionally compress
+        # shape positions and heights to fit within the usable area.
+        if current_top > SLIDE_HEIGHT:
+            usable = SLIDE_HEIGHT - 0.10  # leave 0.1" bottom margin
+            # Find content bounds (skip shapes at very top like backgrounds)
+            shape_tops = []
+            shape_bots = []
+            for shape in slide.shapes:
+                s_top = shape.top / 914400
+                s_bot = (shape.top + shape.height) / 914400
+                if s_top >= 0.3:  # only content shapes, not backgrounds
+                    shape_tops.append(s_top)
+                    shape_bots.append(s_bot)
+
+            if shape_tops and shape_bots:
+                content_start = min(shape_tops)
+                content_end = max(shape_bots)
+                content_height = content_end - content_start
+
+                if content_height > 0:
+                    scale = (usable - content_start) / content_height
+
+                    if 0.60 < scale < 1.0:
+                        for shape in slide.shapes:
+                            s_top = shape.top / 914400
+                            if s_top >= content_start:
+                                rel_top = s_top - content_start
+                                new_top = content_start + rel_top * scale
+                                shape.top = int(new_top * 914400)
+                                shape.height = int(shape.height * scale)
+                    elif scale <= 0.60:
+                        self.warnings.append(
+                            f"Slide {slide_num}: severe overflow "
+                            f'({current_top:.1f}"), compression skipped '
+                            f"(would need {scale:.0%} scale)"
+                        )
 
     # ── Card layouts ─────────────────────────────────────────────────────────
 
@@ -1056,15 +1105,15 @@ class HTMLToPPTXConverter:
             row_top = top + row * (card_height + row_gap)
 
             # Detect card type
-            is_module_card = "module-card" in card_el.get("class", [])
-
+            card_classes = card_el.get("class", [])
+            is_module_card = "module-card" in card_classes
             if is_module_card:
                 self._add_module_card(
                     slide, card_el, left, row_top, card_width, card_height
                 )
             else:
-                title_el = card_el.find(class_="card-title")
-                text_el = card_el.find(class_=["card-text", "card-desc"])
+                title_el = card_el.find(class_=["card-title", "tool-name"])
+                text_el = card_el.find(class_=["card-text", "card-desc", "tool-desc"])
                 number_el = card_el.find(class_="card-number")
 
                 title = get_text(title_el) if title_el else ""
@@ -1407,15 +1456,154 @@ class HTMLToPPTXConverter:
 
     # ── Flow diagrams ────────────────────────────────────────────────────────
 
-    def _add_flow_diagram(self, slide, flow_el: Tag, top: float):
-        """Add a flow diagram (flow-box → flow-arrow → flow-box ...)."""
+    def _add_flow_step_content(
+        self, slide, step: Tag, left: float, top: float, width: float, height: float
+    ):
+        """Render the interior of a single flow/workflow step box."""
+        # Extended class lookups covering both flow-* and step-* conventions
+        num_el = step.find(class_=["step-number"])
+        title_el = step.find(
+            class_=["flow-step-title", "workflow-step-title", "step-title"]
+        )
+        desc_el = step.find(
+            class_=["flow-step-desc", "workflow-step-desc", "step-desc"]
+        )
+        turns_el = step.find(class_="step-turns")
+
+        y = top + 0.08
+        pad_x = 0.12
+        inner_w = width - 2 * pad_x
+
+        if num_el and title_el:
+            # Number + Title on one line
+            add_text_box(
+                slide,
+                f"{get_text(num_el)}. {get_text(title_el)}",
+                left=left + pad_x,
+                top=y,
+                width=inner_w,
+                height=0.30,
+                font_size=14,
+                bold=True,
+                color=WHITE,
+            )
+            y += 0.30
+        elif title_el:
+            add_text_box(
+                slide,
+                get_text(title_el),
+                left=left + pad_x,
+                top=y,
+                width=inner_w,
+                height=0.30,
+                font_size=14,
+                bold=True,
+                color=WHITE,
+                align=PP_ALIGN.CENTER,
+            )
+            y += 0.30
+
+        if desc_el:
+            desc_h = min(0.40, height - (y - top) - 0.10)
+            if desc_h > 0.10:
+                add_text_box(
+                    slide,
+                    get_text(desc_el),
+                    left=left + pad_x,
+                    top=y,
+                    width=inner_w,
+                    height=desc_h,
+                    font_size=11,
+                    color=GRAY_70,
+                )
+                y += desc_h
+
+        if turns_el:
+            remaining = height - (y - top) - 0.05
+            if remaining > 0.15:
+                add_text_box(
+                    slide,
+                    get_text(turns_el),
+                    left=left + pad_x,
+                    top=y,
+                    width=inner_w,
+                    height=remaining,
+                    font_size=10,
+                    italic=True,
+                    color=self.accent_color,
+                )
+
+        # Fallback: no structured children recognised
+        if not title_el and not num_el:
+            add_text_box(
+                slide,
+                get_text(step),
+                left=left + 0.08,
+                top=top + 0.08,
+                width=width - 0.16,
+                height=height - 0.16,
+                font_size=11,
+                color=WHITE,
+                align=PP_ALIGN.CENTER,
+            )
+
+    def _add_flow_diagram(self, slide, flow_el: Tag, top: float) -> float:
+        """Add a flow diagram. Returns total height consumed."""
         # Collect steps (flow-box, flow-step, workflow-step)
         steps = flow_el.find_all(class_=["flow-box", "flow-step", "workflow-step"])
         if not steps:
-            return
+            return 0.0
 
         num_steps = len(steps)
-        # Calculate layout
+
+        # ── Multi-row grid when >4 steps (keeps boxes ≥2.5" wide) ────────
+        if num_steps > 4:
+            cols = 3
+            num_rows = -(-num_steps // cols)  # ceil division
+            gap = 0.20
+            row_gap = 0.25
+            box_width = (CONTENT_WIDTH - gap * (cols - 1)) / cols
+            box_height = 1.05
+
+            for i, step in enumerate(steps):
+                col = i % cols
+                row = i // cols
+                left = CONTENT_LEFT + col * (box_width + gap)
+                rtop = top + row * (box_height + row_gap)
+
+                add_filled_box(
+                    slide,
+                    left,
+                    rtop,
+                    box_width,
+                    box_height,
+                    fill_color=DARK_GRAY,
+                    border_color=self.accent_color,
+                    border_width=1,
+                )
+                self._add_flow_step_content(
+                    slide, step, left, rtop, box_width, box_height
+                )
+
+                # Horizontal arrow to next box in same row (not at row end)
+                if col < cols - 1 and i < num_steps - 1:
+                    arrow_x = left + box_width + gap / 2 - 0.10
+                    add_text_box(
+                        slide,
+                        "\u2192",
+                        left=arrow_x,
+                        top=rtop + box_height / 2 - 0.12,
+                        width=0.20,
+                        height=0.25,
+                        font_size=16,
+                        bold=True,
+                        color=self.accent_color,
+                        align=PP_ALIGN.CENTER,
+                    )
+
+            return num_rows * box_height + (num_rows - 1) * row_gap
+
+        # ── Single-row flow (≤4 steps) ───────────────────────────────────
         gap = 0.15
         arrow_width = 0.35
         total_arrows = num_steps - 1
@@ -1433,7 +1621,6 @@ class HTMLToPPTXConverter:
 
         current_left = start_left
         for i, step in enumerate(steps):
-            # Step box
             add_filled_box(
                 slide,
                 current_left,
@@ -1444,50 +1631,9 @@ class HTMLToPPTXConverter:
                 border_color=self.accent_color,
                 border_width=1,
             )
-
-            # Step text
-            title_el = step.find(class_=["flow-step-title", "workflow-step-title"])
-            desc_el = step.find(class_=["flow-step-desc", "workflow-step-desc"])
-
-            if title_el:
-                add_text_box(
-                    slide,
-                    get_text(title_el),
-                    left=current_left + 0.08,
-                    top=top + 0.08,
-                    width=box_width - 0.16,
-                    height=0.35,
-                    font_size=12,
-                    bold=True,
-                    color=WHITE,
-                    align=PP_ALIGN.CENTER,
-                )
-                if desc_el:
-                    add_text_box(
-                        slide,
-                        get_text(desc_el),
-                        left=current_left + 0.08,
-                        top=top + 0.42,
-                        width=box_width - 0.16,
-                        height=0.4,
-                        font_size=10,
-                        color=GRAY_70,
-                        align=PP_ALIGN.CENTER,
-                    )
-            else:
-                # Simple text inside box
-                text = get_text(step)
-                add_text_box(
-                    slide,
-                    text,
-                    left=current_left + 0.08,
-                    top=top + 0.08,
-                    width=box_width - 0.16,
-                    height=box_height - 0.16,
-                    font_size=11,
-                    color=WHITE,
-                    align=PP_ALIGN.CENTER,
-                )
+            self._add_flow_step_content(
+                slide, step, current_left, top, box_width, box_height
+            )
 
             current_left += box_width
 
@@ -1508,6 +1654,8 @@ class HTMLToPPTXConverter:
                     align=PP_ALIGN.CENTER,
                 )
                 current_left += arrow_width + 2 * gap
+
+        return box_height
 
     # ── Notification stacks ──────────────────────────────────────────────────
 
