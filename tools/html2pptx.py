@@ -377,7 +377,7 @@ def add_headline(
     if size >= 48:
         box_height = 1.5
     elif size >= 36:
-        box_height = 0.8
+        box_height = 1.1
     else:
         box_height = 0.6
     return add_text_box(
@@ -677,7 +677,7 @@ class HTMLToPPTXConverter:
         section_label = slide_div.find(class_="section-label")
         if section_label:
             if is_centered:
-                current_top = 1.5
+                current_top = 1.0
             add_section_label(
                 slide, get_text(section_label), top=current_top, color=self.accent_color
             )
@@ -695,13 +695,13 @@ class HTMLToPPTXConverter:
             size = 56 if headline.name == "h1" or has_gradient else 40
 
             if is_centered:
-                current_top = max(current_top, 2.0)
+                current_top = max(current_top, 1.5)
 
             add_headline(
                 slide, text, top=current_top, size=size, center=is_centered, color=color
             )
-            # Advance must match box_height in add_headline (1.5/0.8/0.6) + gap
-            current_top += 1.6 if size > 45 else 0.9
+            # Advance must match box_height in add_headline (1.5/1.1/0.6) + gap
+            current_top += 1.8 if size > 45 else 1.2
             handled_elements.add(id(headline))
 
         # ── Medium headline ──────────────────────────────────────────────────
@@ -714,7 +714,7 @@ class HTMLToPPTXConverter:
                 size=36,
                 center=is_centered,
             )
-            current_top += 0.8
+            current_top += 1.2
             handled_elements.add(id(medium_headline))
 
         # ── Subhead ──────────────────────────────────────────────────────────
@@ -785,6 +785,21 @@ class HTMLToPPTXConverter:
             current_top += cards_height + 0.2
             for c in standalone_cards:
                 handled_elements.add(id(c))
+
+        # ── Principle boxes (numbered principles in grid layouts) ─────────
+        principles = [
+            p
+            for p in slide_div.find_all(class_="principle")
+            if id(p) not in handled_elements
+        ]
+        if principles:
+            self._add_principles(slide, principles, current_top)
+            num_rows = -(-len(principles) // 2)  # ceil division
+            row_height = 0.85
+            row_gap = 0.1
+            current_top += num_rows * (row_height + row_gap)
+            for p in principles:
+                handled_elements.add(id(p))
 
         # ── Code blocks ──────────────────────────────────────────────────────
         code_blocks = slide_div.find_all(class_="code-block")
@@ -1009,6 +1024,41 @@ class HTMLToPPTXConverter:
 
         # Return total height consumed by all rows
         return num_rows * card_height + (num_rows - 1) * row_gap
+
+    def _add_principles(self, slide, principles: list[Tag], top: float):
+        """Add numbered principle boxes in a two-column tenet layout."""
+        cols = 2
+        col_width = CONTENT_WIDTH / 2 - 0.1
+        row_height = 0.85
+        row_gap = 0.1
+
+        for i, principle in enumerate(principles):
+            col = i % cols
+            row = i // cols
+            left = CONTENT_LEFT + col * (col_width + 0.2)
+            ptop = top + row * (row_height + row_gap)
+
+            num_el = principle.find(class_="principle-number")
+            content_el = principle.find(class_="principle-content")
+            number = get_text(num_el) if num_el else str(i + 1)
+            title = ""
+            desc = ""
+            if content_el:
+                h3 = content_el.find("h3")
+                p_tag = content_el.find("p")
+                title = get_text(h3) if h3 else ""
+                desc = get_text(p_tag) if p_tag else ""
+
+            add_tenet(
+                slide,
+                f"{number}. {title}",
+                desc,
+                left,
+                ptop,
+                width=col_width,
+                height=row_height,
+                accent_color=self.accent_color,
+            )
 
     def _add_module_card(
         self,
