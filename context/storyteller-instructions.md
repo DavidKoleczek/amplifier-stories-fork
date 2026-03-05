@@ -75,10 +75,11 @@ Start with this structure:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Deck Title</title>
+    <script>document.documentElement.classList.add('js')</script>
     <style>
         /* Core slide CSS - CRITICAL for preventing content clipping */
         .slide {
-            display: none;
+            display: flex;         /* Default: visible (no-JS scrollable fallback) */
             width: 100vw;
             min-height: 100vh;
             min-height: 100dvh;
@@ -92,6 +93,25 @@ Start with this structure:
         .slide.active {
             display: flex;
         }
+
+        /* Progressive enhancement: no-JS fallback — all slides visible, scrollable */
+        html:not(.js) .slide {
+            display: flex !important;
+            position: relative !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            visibility: visible !important;
+            transform: none !important;
+            width: 100%;
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
+
+        /* Progressive enhancement: JS-only slide mode */
+        html.js { overflow: hidden; }
+        html.js body { overflow: hidden; overscroll-behavior: none; }
+        html.js .slide { display: none; }
+        html.js .slide.active { display: flex; }
 
         /* Centering is OPT-IN for title/short slides only */
         .center {
@@ -152,6 +172,17 @@ Start with this structure:
 </body>
 </html>
 ```
+
+**Progressive Enhancement (REQUIRED):** All decks must include:
+1. `<script>document.documentElement.classList.add('js')</script>` in `<head>` before `<style>`
+2. `.slide { display: flex; }` as default (NOT `display: none`)
+3. `html:not(.js) .slide` block forcing all slides visible for no-JS fallback
+4. `html.js .slide { display: none; }` and `html.js .slide.active { display: flex; }` for JS mode
+5. `html.js body { overflow: hidden; }` (NOT on body directly)
+
+**Why:** Teams/SharePoint may block or strip JavaScript (SafeLinks, CSP, iframe sandbox).
+Without progressive enhancement, users see only the first slide and cannot navigate.
+With it, no-JS users get a scrollable single-page document; JS users get normal slides.
 
 ### Navigation JavaScript
 
@@ -310,6 +341,8 @@ Before presenting to user, verify ALL items in both sections:
 
 ### Visual & Technical
 
+- [ ] **Progressive enhancement present** — `<script>...classList.add('js')</script>` before `<style>`, `html.js`/`html:not(.js)` scoped rules, `.slide { display: flex }` default
+- [ ] **No-JS fallback works** — without JS, all slides visible and scrollable as a single page
 - [ ] Navigation works (arrows, click, dots, **swipe on mobile**)
 - [ ] Slide counter updates correctly
 - [ ] No horizontal scrolling on any slide

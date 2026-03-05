@@ -40,17 +40,39 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
     background: #000;
     color: #fff;
-    overflow: hidden;
-    overscroll-behavior: none;
+    /* NOTE: overflow: hidden is scoped to html.js — see progressive enhancement below */
 }
 
 .slide {
+    display: flex;         /* Default: visible (no-JS scrollable fallback) */
     min-height: 100vh;
     min-height: 100dvh; /* Dynamic viewport for mobile */
     padding: var(--padding-slide);
+    flex-direction: column;
     overflow-y: auto;
     overflow-x: hidden;
 }
+
+/* Progressive enhancement: no-JS fallback — all slides visible, scrollable.
+   Teams/SharePoint may block JS (SafeLinks, CSP, iframe sandbox).
+   Without this, users see only the first slide. */
+html:not(.js) .slide {
+    display: flex !important;
+    position: relative !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
+    transform: none !important;
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+/* JS mode: standard slide navigation */
+html.js { overflow: hidden; }
+html.js body { overflow: hidden; overscroll-behavior: none; }
+html.js .slide { display: none; }
+html.js .slide.active { display: flex; }
 
 .section-label {
     font-size: clamp(12px, 1.5vw, 14px);
