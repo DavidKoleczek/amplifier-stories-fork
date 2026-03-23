@@ -515,12 +515,10 @@
 
         <div class="halves">
             <div class="card card-accent">
-                <div class="card-icon">🔇</div>
                 <h3>What broke</h3>
                 <p>Voice model downloads in amplifier-chat returned a <span class="inline-code">501 Not Implemented</span> error. The feature that had been working simply&hellip; stopped.</p>
             </div>
             <div class="card card-accent">
-                <div class="card-icon">🤔</div>
                 <h3>The question</h3>
                 <p>Nothing in amplifier-chat had changed. The code was the same. So where was the bug? And why was a <em>download</em> returning "Not Implemented"?</p>
             </div>
@@ -595,12 +593,10 @@
 
         <div class="halves">
             <div class="card">
-                <div class="card-icon">📦</div>
                 <h3>The packaging problem</h3>
                 <p>Changes in amplifier-distro altered how voice dependencies are bundled. The <span class="inline-code">[voice]</span> extras pattern that pip uses to install optional features was no longer resolving correctly.</p>
             </div>
             <div class="card">
-                <div class="card-icon">🔗</div>
                 <h3>Why it's tricky</h3>
                 <p>Build system changes are invisible to application code. amplifier-chat didn't change — but the packages it received at install time did. Classic "works on my machine" territory.</p>
             </div>
@@ -640,17 +636,14 @@
 
         <div class="thirds">
             <div class="card">
-                <div class="card-icon">🔇</div>
                 <h3>Silent failure</h3>
                 <p>Calling an async function without <span class="inline-code">await</span> doesn't throw an error. It silently creates a coroutine object that gets garbage collected. The operation simply never happens.</p>
             </div>
             <div class="card">
-                <div class="card-icon">🌐</div>
                 <h3>Cross-language boundary</h3>
                 <p>The async nature of the function is defined in Rust, but the calling mistake happens in Python. No single-language linter catches this — it lives at the PyO3 FFI seam.</p>
             </div>
             <div class="card">
-                <div class="card-icon">🎭</div>
                 <h3>Intermittent symptoms</h3>
                 <p>Cancellation bugs manifest as operations that "sometimes work" — they complete when they happen to finish before the cancel was needed, and fail silently when they don't.</p>
             </div>
@@ -705,12 +698,10 @@
 
         <div class="halves mt-lg">
             <div class="card">
-                <div class="card-icon">🌳</div>
                 <h3>Git worktrees for isolation</h3>
                 <p>The developer created a git worktree to isolate the Rust fix from other work in progress. Amplifier guided the fix, the developer ran tests, and the change was squash-merged — a clean, auditable commit.</p>
             </div>
             <div class="card card-highlight">
-                <div class="card-icon">🔄</div>
                 <h3>Cross-session coordination</h3>
                 <p>The developer offered to "prompt amplifier-distro" from another session to make necessary build changes. Multiple Amplifier sessions working in parallel on coordinated fixes across repos.</p>
             </div>
@@ -749,22 +740,18 @@
 
         <div class="halves">
             <div class="card card-accent">
-                <div class="card-icon">🧵</div>
                 <h3>Following the thread</h3>
                 <p>Amplifier didn't stop at the first plausible explanation. It traced the symptom (501 error) through the dependency layer (build system) to the root cause (async FFI bug) — across repo and language boundaries.</p>
             </div>
             <div class="card card-accent">
-                <div class="card-icon">🌐</div>
                 <h3>Polyglot fluency</h3>
                 <p>The debugging required understanding Python async semantics, Rust async semantics, PyO3 FFI bindings, and how they interact. No single-language tool handles this. Amplifier operates across the full stack.</p>
             </div>
             <div class="card card-accent">
-                <div class="card-icon">⚡</div>
                 <h3>Instant diagnosis</h3>
                 <p>After tracing the full call chain, Amplifier identified "two changes needed" immediately — no trial-and-error, no bisecting commits, no printf debugging. Trace the chain, find the cause, state the fix.</p>
             </div>
             <div class="card card-accent">
-                <div class="card-icon">🔧</div>
                 <h3>End-to-end workflow</h3>
                 <p>Not just diagnosis — Amplifier participated in the full cycle: diagnose, create worktree, fix code, run tests, squash-merge. From symptom to shipped fix in a single workflow.</p>
             </div>
